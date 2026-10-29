@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <permission android:name="org.blackmirror.yj64monitor.permission.RECEIVE_REPORT" android:protectionLevel="normal" />
+    <queries>
+        <package android:name="org.blackmirror.blackmirror" />
+    </queries>
+    <application
+        android:allowBackup="false"
+        android:label="YJ-64 Monitor"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar"
+        android:usesCleartextTraffic="false">
+        <activity
+            android:name=".MonitorActivity"
+            android:exported="true"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <provider
+            android:name=".DiagnosticReportProvider"
+            android:authorities="org.blackmirror.yj64monitor.diagnostics"
+            android:exported="true"
+            android:permission="org.blackmirror.yj64monitor.permission.RECEIVE_REPORT" />
+    </application>
+</manifest>
