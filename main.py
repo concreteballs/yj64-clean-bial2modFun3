@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
@@ -513,6 +514,7 @@ class YJ64BaseApp(App):
             output = resolver.openOutputStream(uri)
             if output is None:
                 raise IOError("Android could not open the Downloads archive for writing")
+            source_digest = hashlib.sha256(temp_path.read_bytes()).hexdigest()
             copied = 0
             try:
                 with temp_path.open("rb") as source:
@@ -544,8 +546,9 @@ class YJ64BaseApp(App):
             finally:
                 readback.close()
             import zipfile
-            if read_count != copied or not zipfile.is_zipfile(verify_path):
-                raise IOError("Downloads archive read-back or ZIP integrity check failed")
+            read_digest = hashlib.sha256(verify_path.read_bytes()).hexdigest() if verify_path.is_file() else ""
+            if read_count != copied or read_digest != source_digest or not zipfile.is_zipfile(verify_path):
+                raise IOError("Downloads archive read-back, SHA-256 or ZIP integrity check failed")
             with zipfile.ZipFile(verify_path, "r") as check_zip:
                 bad_member = check_zip.testzip()
                 if bad_member or "manifest.json" not in check_zip.namelist():
@@ -654,6 +657,7 @@ class YJ64BaseApp(App):
                 from_stream.close()
                 to_stream.close()
             if request_code == 4701:
+                source_digest = hashlib.sha256(Path(self._archive_export_path).read_bytes()).hexdigest()
                 if copied_bytes <= 0 or copied_bytes != expected_bytes:
                     raise IOError(f"Archive transfer incomplete: copied {copied_bytes} of {expected_bytes} bytes")
                 verify_path = Path(self.user_data_dir) / "yj64-archive-readback.zip"
@@ -672,8 +676,9 @@ class YJ64BaseApp(App):
                 finally:
                     verify_stream.close()
                 import zipfile
-                if verify_bytes <= 0 or verify_bytes != copied_bytes:
-                    raise IOError(f"Saved archive read-back mismatch: read {verify_bytes} of {copied_bytes} bytes")
+                read_digest = hashlib.sha256(verify_path.read_bytes()).hexdigest() if verify_path.is_file() else ""
+                if verify_bytes <= 0 or verify_bytes != copied_bytes or read_digest != source_digest:
+                    raise IOError(f"Saved archive read-back/SHA-256 mismatch: read {verify_bytes} of {copied_bytes} bytes")
                 if not zipfile.is_zipfile(verify_path):
                     raise IOError("Saved file is not a valid ZIP archive")
                 with zipfile.ZipFile(verify_path, "r") as check_zip:

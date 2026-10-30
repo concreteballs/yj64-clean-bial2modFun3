@@ -1,6 +1,7 @@
 """Persistent local chat, skills, and agent workspace for YJ-64."""
 from __future__ import annotations
 
+import copy
 import json
 import time
 import uuid
@@ -59,14 +60,29 @@ class ChatWorkspace:
             raise ValueError("Invalid chat id")
         return self.chats_dir / (safe_id + ".json")
 
-    def load_messages(self, chat_id: str) -> list[dict[str, str]]:
+    @staticmethod
+    def _normalize_message(message: dict[str, Any]) -> dict[str, Any]:
+        result = copy.deepcopy(message)
+        result["role"] = str(result.get("role", "assistant"))
+        result["content"] = str(result.get("content", ""))
+        result.setdefault("message_id", uuid.uuid4().hex)
+        result.setdefault("timestamp", result.get("timestamp_ms", time.time()))
+        result.setdefault("session_id", None)
+        result.setdefault("participant_id", None)
+        result.setdefault("message_type", "chat")
+        return result
+
+    def load_messages(self, chat_id: str) -> list[dict[str, Any]]:
         data = self._read_json(self._messages_path(chat_id), [])
         if not isinstance(data, list):
             return []
-        return [{"role": str(x.get("role", "assistant")), "content": str(x.get("content", ""))} for x in data if isinstance(x, dict)]
+        normalized = [self._normalize_message(x) for x in data if isinstance(x, dict)]
+        if normalized != data:
+            self._write_json(self._messages_path(chat_id), normalized)
+        return normalized
 
     def save_messages(self, chat_id: str, messages: list[dict[str, Any]]) -> None:
-        normalized = [{"role": str(x.get("role", "assistant")), "content": str(x.get("content", ""))} for x in messages if isinstance(x, dict)]
+        normalized = [self._normalize_message(x) for x in messages if isinstance(x, dict)]
         self._write_json(self._messages_path(chat_id), normalized)
         chats = self.list_chats()
         now = int(time.time() * 1000)
@@ -87,12 +103,17 @@ class ChatWorkspace:
         key = "".join(c for c in str(name) if c.isalnum() or c in "-_ ").strip().replace(" ", "_")
         return self.histories_dir / ((key or "participant") + ".json")
 
-    def load_named_history(self, name: str) -> list[dict[str, str]]:
+    def load_named_history(self, name: str) -> list[dict[str, Any]]:
         data = self._read_json(self._history_path(name), [])
-        return [{"role": str(x.get("role", "assistant")), "content": str(x.get("content", ""))} for x in data if isinstance(x, dict)] if isinstance(data, list) else []
+        if not isinstance(data, list):
+            return []
+        normalized = [self._normalize_message(x) for x in data if isinstance(x, dict)]
+        if normalized != data:
+            self._write_json(self._history_path(name), normalized)
+        return normalized
 
     def save_named_history(self, name: str, history: list[dict[str, Any]]) -> None:
-        self._write_json(self._history_path(name), [{"role": str(x.get("role", "assistant")), "content": str(x.get("content", ""))} for x in history if isinstance(x, dict)])
+        self._write_json(self._history_path(name), [self._normalize_message(x) for x in history if isinstance(x, dict)])
 
     def read_skills(self) -> str:
         try:

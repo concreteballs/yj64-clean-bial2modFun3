@@ -44,16 +44,16 @@ Q-002 — НАДЁЖНЫЙ ЭКСПОРТ И ВОССТАНОВЛЕНИЕ ИСТ
 
 ============================================================ НАЧАЛО ОПЕРАЦИОННОГО СТОЛА
 📌 ПЛАН СЛЕДУЮЩЕГО ОБНОВЛЕНИЯ — АВТОНОМНОЕ СОХРАНЕНИЕ КОНТЕКСТА YJ-64
-СТАТУС: ПЛАН ЗАФИКСИРОВАН. НЕ РЕАЛИЗОВЫВАТЬ ДО ЗАВЕРШЕНИЯ ТЕСТОВ ТЕКУЩЕЙ ВЕРСИИ 0.1.27 И АНАЛИЗА НОВЫХ ОТЧЁТОВ.
+СТАТУС: ЭТАП 1 ОДОБРЕН ВЛАДЕЛЬЦЕМ. БАЗОВАЯ ВЕРСИЯ ИСХОДНИКОВ — 0.1.31; ЦЕЛЕВАЯ СБОРКА — СТРОГО 0.1.32. ВЛАДЕЛЕЦ ПОДТВЕРДИЛ, ЧТО НОВЫЙ ОТЧЁТ МОНИТОРА НЕ НУЖЕН: ТЕКУЩАЯ РАБОТА МОНИТОРА КОРРЕКТНА.
 
 ЦЕЛЬ:
 Контекст YJ-64 должен сохраняться и восстанавливаться даже после полного удаления приложения вместе с его приватными данными. На текущем этапе требуется добиться надёжного сохранения архива непосредственно на телефоне. Облачная/серверная копия, второе устройство и другие независимые резервные хранилища — отдельный будущий этап, НЕ включать в ближайшую реализацию.
 
 ОБЯЗАТЕЛЬНЫЙ ПЛАН РАБОТЫ:
-1. Сначала установить APK версии 0.1.27 и проверить на устройстве исправление передачи архива через Android Storage Access Framework (SAF). Не удалять приложение и не очищать его данные до проверки фактического экспорта архива.
-2. Проверить в свежих отчётах все ошибки экспорта/импорта и события archive transfer. Любые обнаруженные дефекты сначала исправить и проверить; не начинать следующую реализацию вслепую.
+1. Исходное состояние проверено: репозиторий concreteballs/yj64-clean-bial2modFun3, ветка main, buildozer.spec версии 0.1.31. Проверка установленного APK и новый отчёт монитора не являются gate этой итерации по прямому решению владельца.
+2. Объём этой сборки ограничен этапом 1: сохранение метаданных истории, накопительный ZIP, манифест SHA-256, безопасный импорт/откат и проверка Android SAF/MediaStore. Этапы 2–7 остаются будущими отдельными задачами.
 3. Реализовать надёжный экспорт архива в общую папку телефона, выбранную пользователем через системный SAF picker (например, Download). Архив должен оставаться доступным после удаления приложения и его приватной папки. Не считать временный файл внутри приватного каталога резервной копией.
-4. После экспорта проверять, что целевой URI действительно открыт и записан, размер не нулевой, запись завершена, файл можно повторно открыть и прочитать, ZIP проходит проверку целостности и содержит корректный manifest.json со схемой yj64.archive.v1. Не показывать успех, если какая-либо проверка не прошла.
+4. После экспорта проверять, что целевой URI действительно открыт и записан, размер не нулевой, запись завершена, файл можно повторно открыть и прочитать, ZIP проходит проверку целостности и содержит корректный manifest.json со схемой yj64.archive.v2; импорт также поддерживает прежнюю v1. Не показывать успех, если какая-либо проверка не прошла.
 5. Устранить зависимость от отсутствующего jnius.jarray при переносе данных. Для текущих небольших архивов допустим потоковый перенос через InputStream/OutputStream; обработка ошибок и закрытие потоков должны быть надёжными. Для больших архивов избегать неоправданно медленного копирования по одному байту, если тесты выявят проблему.
 6. Проверить импорт архива после новой установки, когда старые приватные данные уже недоступны. Проверить содержимое и пути до записи; отклонять повреждённые ZIP, неподдерживаемую схему, небезопасные пути и частично записанные архивы. По возможности выполнять восстановление транзакционно, чтобы ошибка не оставляла частично восстановленный контекст.
 7. Проверить, что в архив попадают предусмотренные для восстановления данные контекста (рабочее пространство/диалоги и связанные данные, настройки и другие поддерживаемые компоненты), а не только диагностический отчёт. Явно документировать, что включено и что намеренно исключено. Секреты/API-ключи не включать в открытом виде.
@@ -61,8 +61,8 @@ Q-002 — НАДЁЖНЫЙ ЭКСПОРТ И ВОССТАНОВЛЕНИЕ ИСТ
 9. Зафиксировать результаты тестов и ошибки в отчёте. Считать функцию готовой только после успешного восстановления после полного удаления приложения; сообщения UI «архив создан» недостаточно.
 
 ОГРАНИЧЕНИЯ И ПРОЦЕСС:
-- Текущий APK 0.1.27 тестируется отдельно; не подменять тестирование обещаниями или анализом кода.
-- Новые изменения в рабочие файлы вносить только после анализа отчётов и явного согласования объёма; затем повышать версию APK и синхронизировать точные разрешённые фрагменты и SHA в Guard.
+- Текущая базовая версия исходников — 0.1.31; целевая версия APK — строго 0.1.32.
+- Изменения одобрены владельцем. Новый отчёт монитора для этого патча не требуется. Повысить APK до 0.1.32 и синхронизировать точные фрагменты и SHA в Guard.
 - Все изменения делать через PROTECTED-LINE-GUARD. Сначала обновлять рабочие файлы и версии, затем синхронизировать точные фрагменты Guard; Guard остаётся единственной точкой запуска Android Build.
 - Не намеренно повреждать Guard или код ради искусственного падения CI. Если изменение Guard запускает сборку, дождаться результата и зафиксировать его честно.
 - В ближайшем этапе цель только локальный архив на телефоне и успешное восстановление после удаления. Отдельную удалённую/облачную резервную копию спланировать в последующем обновлении.
@@ -109,7 +109,7 @@ Q-002 — НАДЁЖНЫЙ ЭКСПОРТ И ВОССТАНОВЛЕНИЕ ИСТ
 - Существующий архив 0.1.27 по результатам проверки является валидным ZIP, но не полноценной резервной копией диалогов: в нём есть запись общего чата без сохранённых сообщений, файл skills.md содержит только заголовок, отдельные файлы инструкций владельца/памяти участников отсутствуют. Не заявлять о полноценном резервном копировании до исправления экспорта и успешного теста восстановления.
 
 7. ПОРЯДОК РЕАЛИЗАЦИИ
-- Сначала завершить фактическую проверку/исправление экспорта и импорта архива по предыдущему разделу Guard и изучить свежие отчёты.
+- После сборки провести пользовательский тест экспорта/импорта версии 0.1.32 и восстановления после переустановки; до успешного теста не удалять текущую установку и данные.
 - Затем изучить текущие точки записи/чтения в chat_workspace.py, llm_api.py, main.py и связанные компоненты; составить конкретный список файлов и минимальный патч.
 - До изменения рабочего кода показать владельцу предлагаемый патч и получить отдельное явное согласование.
 - Для каждой итерации повышать версию APK, синхронизировать точные разрешённые фрагменты и blob SHA в Guard, запускать сборку только через Guard и честно фиксировать результат. Не менять код в этом шаге.
@@ -122,6 +122,7 @@ FILE: main.py BEGIN ALLOWED
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
@@ -633,6 +634,7 @@ class YJ64BaseApp(App):
             output = resolver.openOutputStream(uri)
             if output is None:
                 raise IOError("Android could not open the Downloads archive for writing")
+            source_digest = hashlib.sha256(temp_path.read_bytes()).hexdigest()
             copied = 0
             try:
                 with temp_path.open("rb") as source:
@@ -664,8 +666,9 @@ class YJ64BaseApp(App):
             finally:
                 readback.close()
             import zipfile
-            if read_count != copied or not zipfile.is_zipfile(verify_path):
-                raise IOError("Downloads archive read-back or ZIP integrity check failed")
+            read_digest = hashlib.sha256(verify_path.read_bytes()).hexdigest() if verify_path.is_file() else ""
+            if read_count != copied or read_digest != source_digest or not zipfile.is_zipfile(verify_path):
+                raise IOError("Downloads archive read-back, SHA-256 or ZIP integrity check failed")
             with zipfile.ZipFile(verify_path, "r") as check_zip:
                 bad_member = check_zip.testzip()
                 if bad_member or "manifest.json" not in check_zip.namelist():
@@ -774,6 +777,7 @@ class YJ64BaseApp(App):
                 from_stream.close()
                 to_stream.close()
             if request_code == 4701:
+                source_digest = hashlib.sha256(Path(self._archive_export_path).read_bytes()).hexdigest()
                 if copied_bytes <= 0 or copied_bytes != expected_bytes:
                     raise IOError(f"Archive transfer incomplete: copied {copied_bytes} of {expected_bytes} bytes")
                 verify_path = Path(self.user_data_dir) / "yj64-archive-readback.zip"
@@ -792,8 +796,9 @@ class YJ64BaseApp(App):
                 finally:
                     verify_stream.close()
                 import zipfile
-                if verify_bytes <= 0 or verify_bytes != copied_bytes:
-                    raise IOError(f"Saved archive read-back mismatch: read {verify_bytes} of {copied_bytes} bytes")
+                read_digest = hashlib.sha256(verify_path.read_bytes()).hexdigest() if verify_path.is_file() else ""
+                if verify_bytes <= 0 or verify_bytes != copied_bytes or read_digest != source_digest:
+                    raise IOError(f"Saved archive read-back/SHA-256 mismatch: read {verify_bytes} of {copied_bytes} bytes")
                 if not zipfile.is_zipfile(verify_path):
                     raise IOError("Saved file is not a valid ZIP archive")
                 with zipfile.ZipFile(verify_path, "r") as check_zip:
@@ -3309,7 +3314,6 @@ class YJ64BaseApp(App):
 
 
 YJ64BaseApp().run()
-
 END ALLOWED
 
 ============================================================
@@ -4927,7 +4931,7 @@ package.name = blackmirror
 package.domain = org.blackmirror
 source.dir = .
 source.include_exts = py,json,md,txt
-version = 0.1.31
+version = 0.1.32
 requirements = python3==3.10.11,hostpython3==3.10.11,kivy==2.3.0,pyjnius,android,sh<2.0,certifi,websockets
 orientation = portrait
 fullscreen = 0
@@ -6298,6 +6302,7 @@ FILE: chat_workspace.py BEGIN ALLOWED
 """Persistent local chat, skills, and agent workspace for YJ-64."""
 from __future__ import annotations
 
+import copy
 import json
 import time
 import uuid
@@ -6356,14 +6361,29 @@ class ChatWorkspace:
             raise ValueError("Invalid chat id")
         return self.chats_dir / (safe_id + ".json")
 
-    def load_messages(self, chat_id: str) -> list[dict[str, str]]:
+    @staticmethod
+    def _normalize_message(message: dict[str, Any]) -> dict[str, Any]:
+        result = copy.deepcopy(message)
+        result["role"] = str(result.get("role", "assistant"))
+        result["content"] = str(result.get("content", ""))
+        result.setdefault("message_id", uuid.uuid4().hex)
+        result.setdefault("timestamp", result.get("timestamp_ms", time.time()))
+        result.setdefault("session_id", None)
+        result.setdefault("participant_id", None)
+        result.setdefault("message_type", "chat")
+        return result
+
+    def load_messages(self, chat_id: str) -> list[dict[str, Any]]:
         data = self._read_json(self._messages_path(chat_id), [])
         if not isinstance(data, list):
             return []
-        return [{"role": str(x.get("role", "assistant")), "content": str(x.get("content", ""))} for x in data if isinstance(x, dict)]
+        normalized = [self._normalize_message(x) for x in data if isinstance(x, dict)]
+        if normalized != data:
+            self._write_json(self._messages_path(chat_id), normalized)
+        return normalized
 
     def save_messages(self, chat_id: str, messages: list[dict[str, Any]]) -> None:
-        normalized = [{"role": str(x.get("role", "assistant")), "content": str(x.get("content", ""))} for x in messages if isinstance(x, dict)]
+        normalized = [self._normalize_message(x) for x in messages if isinstance(x, dict)]
         self._write_json(self._messages_path(chat_id), normalized)
         chats = self.list_chats()
         now = int(time.time() * 1000)
@@ -6384,12 +6404,17 @@ class ChatWorkspace:
         key = "".join(c for c in str(name) if c.isalnum() or c in "-_ ").strip().replace(" ", "_")
         return self.histories_dir / ((key or "participant") + ".json")
 
-    def load_named_history(self, name: str) -> list[dict[str, str]]:
+    def load_named_history(self, name: str) -> list[dict[str, Any]]:
         data = self._read_json(self._history_path(name), [])
-        return [{"role": str(x.get("role", "assistant")), "content": str(x.get("content", ""))} for x in data if isinstance(x, dict)] if isinstance(data, list) else []
+        if not isinstance(data, list):
+            return []
+        normalized = [self._normalize_message(x) for x in data if isinstance(x, dict)]
+        if normalized != data:
+            self._write_json(self._history_path(name), normalized)
+        return normalized
 
     def save_named_history(self, name: str, history: list[dict[str, Any]]) -> None:
-        self._write_json(self._history_path(name), [{"role": str(x.get("role", "assistant")), "content": str(x.get("content", ""))} for x in history if isinstance(x, dict)])
+        self._write_json(self._history_path(name), [self._normalize_message(x) for x in history if isinstance(x, dict)])
 
     def read_skills(self) -> str:
         try:
@@ -6439,141 +6464,185 @@ class ChatWorkspace:
 END ALLOWED
 
 FILE: yj64_persistent_core.py BEGIN ALLOWED
-"""Secondary persistent event ledger and portable YJ-64 archive."""
+"""Persistent event ledger and verified cumulative YJ-64 archive."""
 from __future__ import annotations
-
-import json
-import os
-import sqlite3
-import time
-import zipfile
-from pathlib import Path
+import hashlib, json, os, re, shutil, sqlite3, time, uuid, zipfile
+from pathlib import Path, PurePosixPath
 from typing import Any
 
-
 class PersistentCore:
-    def __init__(self, user_data_dir: str | Path):
-        self.root = Path(user_data_dir)
-        self.root.mkdir(parents=True, exist_ok=True)
-        self.db_path = self.root / "yj64-persistent-core.sqlite3"
-        self.workspace_path = self.root / "yj64-workspace"
-        self.report_path = self.root / "yj64-reports" / "yj64-report.jsonl"
-        with self._connect() as db:
-            db.execute("CREATE TABLE IF NOT EXISTS events (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp_ms INTEGER NOT NULL, event TEXT NOT NULL, data_json TEXT NOT NULL)")
-
+    ARCHIVE_SCHEMA = "yj64.archive.v2"
+    SECRET_KEYS = {"private_messages","api_key","api_keys","token","access_token","refresh_token","authorization"}
+    def __init__(self,user_data_dir:str|Path):
+        self.root=Path(user_data_dir);self.root.mkdir(parents=True,exist_ok=True)
+        self.db_path=self.root/"yj64-persistent-core.sqlite3";self.workspace_path=self.root/"yj64-workspace"
+        self.report_path=self.root/"yj64-reports"/"yj64-report.jsonl";self.archive_state_path=self.root/"yj64-archive-state.zip"
+        with self._connect() as db:db.execute("CREATE TABLE IF NOT EXISTS events (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp_ms INTEGER NOT NULL, event TEXT NOT NULL, data_json TEXT NOT NULL)")
     def _connect(self):
-        db = sqlite3.connect(str(self.db_path), timeout=5)
-        db.execute("PRAGMA journal_mode=WAL")
-        return db
-
-    def record_event(self, event: str, data: dict[str, Any] | None = None) -> None:
+        db=sqlite3.connect(str(self.db_path),timeout=5);db.execute("PRAGMA journal_mode=WAL");return db
+    def record_event(self,event:str,data:dict[str,Any]|None=None)->None:
         try:
-            with self._connect() as db:
-                db.execute("INSERT INTO events(timestamp_ms,event,data_json) VALUES(?,?,?)", (int(time.time() * 1000), str(event), json.dumps(data or {}, ensure_ascii=False)))
-        except sqlite3.Error:
-            # The JSONL diagnostic report remains the primary event source.
-            return
-
-    def export_archive(self, destination: str | Path) -> Path:
-        destination = Path(destination)
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        temp = destination.with_suffix(destination.suffix + ".tmp")
-        manifest = {"schema": "yj64.archive.v1", "created_ms": int(time.time() * 1000), "files": []}
-        with zipfile.ZipFile(temp, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-            for path in (self.workspace_path, self.report_path):
-                if path.is_file():
-                    arcname = str(path.relative_to(self.root))
-                    archive.write(path, arcname)
-                    manifest["files"].append(arcname)
-                elif path.is_dir():
-                    for child in path.rglob("*"):
-                        if child.is_file() and not child.is_symlink():
-                            arcname = str(child.relative_to(self.root))
-                            archive.write(child, arcname)
-                            manifest["files"].append(arcname)
+            with self._connect() as db:db.execute("INSERT INTO events(timestamp_ms,event,data_json) VALUES(?,?,?)",(int(time.time()*1000),str(event),json.dumps(data or {},ensure_ascii=False)))
+        except sqlite3.Error:return
+    @staticmethod
+    def _sha(data:bytes)->str:return hashlib.sha256(data).hexdigest()
+    @staticmethod
+    def _safe_name(name:str)->bool:
+        p=PurePosixPath(name);return bool(name) and not p.is_absolute() and all(x not in ("",".","..") for x in p.parts) and "\\" not in name
+    @classmethod
+    def _sanitize(cls,value:Any)->Any:
+        if isinstance(value,dict):return {k:cls._sanitize(v) for k,v in value.items() if str(k).lower() not in cls.SECRET_KEYS}
+        if isinstance(value,list):return [cls._sanitize(x) for x in value]
+        return value
+    @classmethod
+    def _sanitize_json(cls,payload:bytes)->bytes:
+        try:data=json.loads(payload.decode("utf-8"))
+        except (UnicodeDecodeError,json.JSONDecodeError):return payload
+        return json.dumps(cls._sanitize(data),ensure_ascii=False,indent=2).encode("utf-8")
+    def _collect_files(self)->dict[str,bytes]:
+        result={}
+        for base in (self.workspace_path,self.report_path):
+            if base.is_file() and not base.is_symlink():items=[base]
+            elif base.is_dir() and not base.is_symlink():items=[p for p in base.rglob("*") if p.is_file() and not p.is_symlink()]
+            else:items=[]
+            for p in items:
+                name=p.relative_to(self.root).as_posix();data=p.read_bytes()
+                result[name]=self._sanitize_json(data) if p.suffix.lower()==".json" else data
+        for pattern in ("yj64-router-config.json","yj64-llm-config*.json"):
+            for p in self.root.glob(pattern):
+                if p.is_file() and not p.is_symlink():result[p.name]=self._sanitize_json(p.read_bytes())
+        return result
+    @staticmethod
+    def _merge_history(old:bytes,new:bytes)->bytes:
+        try:a=json.loads(old.decode("utf-8"));b=json.loads(new.decode("utf-8"))
+        except (UnicodeDecodeError,json.JSONDecodeError):return new
+        if not isinstance(a,list) or not isinstance(b,list):return new
+        merged={}
+        for item in a+b:
+            if not isinstance(item,dict):continue
+            mid=str(item.get("message_id") or "legacy:"+hashlib.sha256(json.dumps(item,sort_keys=True,ensure_ascii=False).encode()).hexdigest());merged[mid]=item
+        rows=list(merged.values());rows.sort(key=lambda x:(x.get("timestamp",x.get("timestamp_ms",0)) or 0,str(x.get("message_id",""))))
+        return json.dumps(rows,ensure_ascii=False,indent=2).encode("utf-8")
+    def _read_previous(self):
+        if not self.archive_state_path.is_file() or not zipfile.is_zipfile(self.archive_state_path):return {},None
+        try:
+            with zipfile.ZipFile(self.archive_state_path) as z:
+                if z.testzip():return {},None
+                m=json.loads(z.read("manifest.json").decode("utf-8"))
+                if m.get("schema")!=self.ARCHIVE_SCHEMA:return {},None
+                return {n:z.read(n) for n in m.get("files",{})},m
+        except (OSError,KeyError,ValueError,zipfile.BadZipFile,json.JSONDecodeError):return {},None
+    def export_archive(self,destination:str|Path)->Path:
+        dest=Path(destination);dest.parent.mkdir(parents=True,exist_ok=True);tmp=dest.with_suffix(dest.suffix+".tmp");state_tmp=self.archive_state_path.with_suffix(".zip.tmp")
+        previous,old_manifest=self._read_previous();merged=dict(previous);current=self._collect_files()
+        for name,data in current.items():
+            if name.startswith("yj64-workspace/chats/") and name.endswith(".json") and name in merged:data=self._merge_history(merged[name],data)
+            merged[name]=data
+        idx="yj64-workspace/chats.json"
+        if idx not in merged:raise IOError("Archive cannot be created: chat index missing")
+        try:index=json.loads(merged[idx].decode("utf-8"));chats=index.get("chats",[]) if isinstance(index,dict) else []
+        except (UnicodeDecodeError,json.JSONDecodeError,AttributeError) as exc:raise IOError("Invalid archive chat index") from exc
+        if not isinstance(chats,list) or not chats:raise IOError("Archive has no saved chats")
+        for item in chats:
+            cid=re.sub(r"[^A-Za-z0-9_-]","",str(item.get("id",""))) if isinstance(item,dict) else ""
+            if not cid or f"yj64-workspace/chats/{cid}.json" not in merged:raise IOError("Saved chat history missing")
+        try:
+            with self._connect() as db:events=db.execute("SELECT timestamp_ms,event,data_json FROM events ORDER BY id").fetchall()
+            merged["yj64-events-export.json"]=json.dumps(events,ensure_ascii=False).encode("utf-8")
+        except sqlite3.Error:pass
+        messages=[]
+        for name,data in merged.items():
+            if name.startswith("yj64-workspace/chats/") and name.endswith(".json"):
+                rows=json.loads(data.decode("utf-8"))
+                if isinstance(rows,list):messages.extend(x for x in rows if isinstance(x,dict))
+        messages.sort(key=lambda x:x.get("timestamp",x.get("timestamp_ms",0)) or 0);now=int(time.time()*1000)
+        manifest={"schema":self.ARCHIVE_SCHEMA,"archive_id":(old_manifest or {}).get("archive_id") or uuid.uuid4().hex,
+          "created_at":(old_manifest or {}).get("created_at") or time.strftime("%Y-%m-%dT%H:%M:%SZ",time.gmtime(now/1000)),
+          "updated_at":time.strftime("%Y-%m-%dT%H:%M:%SZ",time.gmtime(now/1000)),
+          "last_message_id":str(messages[-1].get("message_id","")) if messages else None,"message_count":len(messages),
+          "included":["common_chat_history","workspace_metadata","local_skills","router_model_settings_without_secrets","technical_diagnostics"],
+          "excluded":["participant_private_messages","api_keys_and_tokens","application_private_database"],
+          "files":{n:{"sha256":self._sha(d),"size":len(d)} for n,d in sorted(merged.items())}}
+        try:
+            for target in (tmp,state_tmp):
+                with zipfile.ZipFile(target,"w",compression=zipfile.ZIP_DEFLATED) as z:
+                    for n,d in sorted(merged.items()):z.writestr(n,d)
+                    z.writestr("manifest.json",json.dumps(manifest,ensure_ascii=False,indent=2))
+                self._verify_archive(target)
+            os.replace(state_tmp,self.archive_state_path);os.replace(tmp,dest)
+        except Exception:tmp.unlink(missing_ok=True);state_tmp.unlink(missing_ok=True);raise
+        return dest
+    def _verify_archive(self,path:Path):
+        if not path.is_file() or path.stat().st_size<=0 or not zipfile.is_zipfile(path):raise IOError("Archive ZIP empty or invalid")
+        with zipfile.ZipFile(path) as z:
+            names=z.namelist()
+            if z.testzip() or len(names)!=len(set(names)) or names.count("manifest.json")!=1:raise IOError("Archive integrity/manifest check failed")
+            m=json.loads(z.read("manifest.json").decode("utf-8"))
+            if m.get("schema")!=self.ARCHIVE_SCHEMA or not isinstance(m.get("files"),dict):raise IOError("Unsupported archive manifest")
+            for n,meta in m["files"].items():
+                if not self._safe_name(n) or n not in names:raise IOError("Unsafe or missing archive path")
+                data=z.read(n)
+                if len(data)!=int(meta.get("size",-1)) or self._sha(data)!=meta.get("sha256"):raise IOError("Archive SHA-256/size mismatch: "+n)
+            if set(names)!=set(m["files"])|{"manifest.json"}:raise IOError("Undeclared archive files")
+            return m
+    def import_archive(self,source:str|Path)->int:
+        source=Path(source)
+        if not source.is_file() or not zipfile.is_zipfile(source):raise ValueError("Not a valid ZIP archive")
+        with zipfile.ZipFile(source) as z:
+            names=z.namelist()
+            if z.testzip() or len(names)!=len(set(names)) or names.count("manifest.json")!=1:raise ValueError("Archive integrity/manifest check failed")
+            m=json.loads(z.read("manifest.json").decode("utf-8"));schema=m.get("schema") if isinstance(m,dict) else None
+            if schema not in ("yj64.archive.v1",self.ARCHIVE_SCHEMA):raise ValueError("Unsupported archive schema")
+            declared=m.get("files")
+            if schema==self.ARCHIVE_SCHEMA:
+                if not isinstance(declared,dict):raise ValueError("Invalid hash manifest")
+                payloads={}
+                for n,meta in declared.items():
+                    if not self._safe_name(n) or n not in names:raise ValueError("Unsafe/missing archive path")
+                    data=z.read(n)
+                    if len(data)!=int(meta.get("size",-1)) or self._sha(data)!=meta.get("sha256"):raise ValueError("Archive SHA-256/size mismatch: "+n)
+                    payloads[n]=data
+                if set(names)!=set(payloads)|{"manifest.json"}:raise ValueError("Undeclared archive files")
+            else:
+                if not isinstance(declared,list) or not all(isinstance(n,str) and self._safe_name(n) for n in declared):raise ValueError("Invalid legacy manifest")
+                payloads={n:z.read(n) for n in declared if n in names}
+                if set(payloads)!=set(declared):raise ValueError("Legacy archive contents mismatch")
+        idx="yj64-workspace/chats.json"
+        if idx not in payloads:raise ValueError("Archive chat index missing")
+        index=json.loads(payloads[idx].decode("utf-8"));chats=index.get("chats",[]) if isinstance(index,dict) else []
+        if not isinstance(chats,list) or not chats:raise ValueError("Archive has no saved chats")
+        for item in chats:
+            cid=re.sub(r"[^A-Za-z0-9_-]","",str(item.get("id",""))) if isinstance(item,dict) else "";h=f"yj64-workspace/chats/{cid}.json"
+            if not cid or h not in payloads:raise ValueError("Archive chat history missing")
+            rows=json.loads(payloads[h].decode("utf-8"))
+            if not isinstance(rows,list) or not all(isinstance(x,dict) and "role" in x and "content" in x for x in rows):raise ValueError("Invalid chat history")
+        staged=[];allowed_root={"yj64-router-config.json"}
+        try:
+            for n,data in payloads.items():
+                allowed=n.startswith(("yj64-workspace/","yj64-reports/")) or n in allowed_root or (n.startswith("yj64-llm-config-") and n.endswith(".json"))
+                if not allowed:continue
+                target=self.root/n;target.parent.mkdir(parents=True,exist_ok=True);stage=target.with_name(target.name+".restore-tmp");stage.write_bytes(data)
+                backup=target.read_bytes() if target.is_file() else None;staged.append((target,stage,backup))
+            committed=[]
             try:
-                with self._connect() as db:
-                    rows = db.execute("SELECT timestamp_ms,event,data_json FROM events ORDER BY id").fetchall()
-                events_path = self.root / "yj64-events-export.json"
-                events_path.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
-                archive.write(events_path, "yj64-events-export.json")
-                events_path.unlink(missing_ok=True)
-                manifest["files"].append("yj64-events-export.json")
-            except sqlite3.Error:
-                pass
-            archive.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
-        if not zipfile.is_zipfile(temp) or temp.stat().st_size <= 0:
-            temp.unlink(missing_ok=True)
-            raise IOError("Archive validation failed: ZIP is empty or invalid")
-        os.replace(temp, destination)
-        return destination
-
-    def import_archive(self, source: str | Path) -> int:
-        source = Path(source)
-        if not zipfile.is_zipfile(source):
-            raise ValueError("Selected file is not a valid ZIP archive")
-        allowed_roots = ("yj64-workspace/", "yj64-reports/")
-        count = 0
-        with zipfile.ZipFile(source, "r") as archive:
-            bad = archive.testzip()
-            if bad:
-                raise ValueError("Archive integrity check failed: " + bad)
-            names = archive.namelist()
-            if "manifest.json" not in names:
-                raise ValueError("Archive manifest is missing")
-            manifest = json.loads(archive.read("manifest.json").decode("utf-8"))
-            if not isinstance(manifest, dict) or manifest.get("schema") != "yj64.archive.v1":
-                raise ValueError("Unsupported YJ-64 archive schema")
-            declared = manifest.get("files")
-            if not isinstance(declared, list) or not all(isinstance(name, str) for name in declared):
-                raise ValueError("Archive manifest file list is missing or invalid")
-            payloads = {
-                info.filename: archive.read(info)
-                for info in archive.infolist()
-                if not info.is_dir() and info.filename not in {"manifest.json", "yj64-events-export.json"}
-            }
-            if set(declared) - {"yj64-events-export.json"} != set(payloads):
-                raise ValueError("Archive contents do not match manifest file list")
-            index_name = "yj64-workspace/chats.json"
-            if index_name not in payloads:
-                raise ValueError("Archive is incomplete: chat index is missing")
-            try:
-                index = json.loads(payloads[index_name].decode("utf-8"))
-                chats = index.get("chats", []) if isinstance(index, dict) else []
-                ids = [str(item.get("id", "")) for item in chats if isinstance(item, dict)]
-                if not ids:
-                    raise ValueError("Archive has no saved chat entries")
-                for chat_id in ids:
-                    safe_id = "".join(c for c in chat_id if c.isalnum() or c in "-_")
-                    history_name = "yj64-workspace/chats/" + safe_id + ".json"
-                    if not safe_id or history_name not in payloads:
-                        raise ValueError("Archive is incomplete: chat history is missing")
-                    history = json.loads(payloads[history_name].decode("utf-8"))
-                    if not isinstance(history, list) or not all(
-                        isinstance(item, dict) and "role" in item and "content" in item
-                        for item in history
-                    ):
-                        raise ValueError("Archive contains invalid chat history JSON")
-            except (UnicodeDecodeError, json.JSONDecodeError, AttributeError, TypeError) as exc:
-                raise ValueError("Archive workspace JSON is invalid") from exc
-            # Validate every destination before writing any content.
-            for name in payloads:
-                if not name.startswith(allowed_roots) or Path(name).is_absolute() or ".." in Path(name).parts:
-                    raise ValueError("Archive contains an unsupported path")
-            for name, payload in payloads.items():
-                target = self.root / name
-                target.parent.mkdir(parents=True, exist_ok=True)
-                temp = target.with_suffix(target.suffix + ".importing")
-                temp.write_bytes(payload)
-                os.replace(temp, target)
-                count += 1
-        return count
+                for target,stage,backup in staged:os.replace(stage,target);committed.append((target,backup))
+            except Exception:
+                for target,backup in reversed(committed):
+                    if backup is None:target.unlink(missing_ok=True)
+                    else:
+                        rollback=target.with_name(target.name+".rollback-tmp");rollback.write_bytes(backup);os.replace(rollback,target)
+                raise
+        finally:
+            for _,stage,_ in staged:stage.unlink(missing_ok=True)
+        if schema==self.ARCHIVE_SCHEMA:
+            state_tmp=self.archive_state_path.with_suffix(".zip.tmp");shutil.copyfile(source,state_tmp);os.replace(state_tmp,self.archive_state_path)
+        return len(staged)
 END ALLOWED
 
-EXPECTED-GIT-BLOB-SHA:chat_workspace.py=f1e58e926b89ecf697c88c0fef28ddc4e1a95be4
-EXPECTED-GIT-BLOB-SHA:yj64_persistent_core.py=b960db62a691b0836c6f3c1c7637e87d1f62f596
-EXPECTED-GIT-BLOB-SHA:buildozer.spec=7ce8cfddca4afcd97645fdaa36e2059925737fdc
-EXPECTED-GIT-BLOB-SHA:main.py=18b75a3a0cf9cb809957f3c8842313ac30153ae0
+EXPECTED-GIT-BLOB-SHA:chat_workspace.py=86d355343126987bb0aa3aea61a935c4009be40a
+EXPECTED-GIT-BLOB-SHA:yj64_persistent_core.py=750fe38aeb4edde7c1f195cb0824c6cea4606e58
+EXPECTED-GIT-BLOB-SHA:buildozer.spec=f937a18d10eb6efc3a284f6ea907dd460d482451
+EXPECTED-GIT-BLOB-SHA:main.py=70461a8e3c773bd363f572571378ed791c108e4e
 EXPECTED-GIT-BLOB-SHA:monitor-app/app/src/main/java/org/blackmirror/yj64monitor/DiagnosticReportProvider.java=c632318b6ecb084aecbfe4814269d9d5716546e4
 EXPECTED-GIT-BLOB-SHA:config/bridge.json=d4733db70a087a9d9c6077c739b156d514a85964
 EXPECTED-GIT-BLOB-SHA:services/internal_monitor.py=fe030b51c5676c8f0fcac4e2401284d11f037d87
@@ -6582,7 +6651,7 @@ EXPECTED-GIT-BLOB-SHA:llm_settings.py=22cef481708a66ce544d395d2e655c3b9022da08
 EXPECTED-GIT-BLOB-SHA:android_src/MonitorActivity.java=b5c45286c6536eb02bb9602c51282764fee50249
 EXPECTED-GIT-BLOB-SHA:tools/verify_guard.py=887269e44f5fbffc093de87d02e7bf960f3e138b
 EXPECTED-GIT-BLOB-SHA:message_distributor.py=55de5e6b4ae426900137e58b66d26173e34826e5
-EXPECTED-GIT-BLOB-SHA:.github/workflows/ci.yml=295307267609aea347e7b1ee7c668a5139d96f9c
+EXPECTED-GIT-BLOB-SHA:.github/workflows/ci.yml=d442cd6019f282994f44903b6730b5e04bf5dda3
 EXPECTED-GIT-BLOB-SHA:.github/workflows/android-apk.yml=480684487be8f3059b6cdb49392f73c4d047b069
 EXPECTED-GIT-BLOB-SHA:monitor-app/settings.gradle=8947fd008921eaa4e6667b75bfde20d21d3572ae
 EXPECTED-GIT-BLOB-SHA:monitor-app/build.gradle=5b7ccba7c566afb5057eaea1b10b99b083851fe4
