@@ -144,173 +144,142 @@ END ALLOWED
 
 ---
 
-PATCH-ID: YJ64-ARCHIVE-001
+PATCH-ID: YJ64-PRIVATE-ARCHIVE-001
 
-TARGET FILE: main.py
+TARGET FILE: yj64_persistent_core.py
 
 PURPOSE:
 
-Добавить отдельную кнопку автоматического создания архива
-в публичную папку Download/YJ-64.
+Разделить общий и личный архивы на уровне источника данных.
+
+1. Общий архив не включает yj64-workspace/histories/.
+2. История каждого участника сохраняется в отдельный ZIP.
+3. Личные ZIP размещаются только во внутреннем хранилище приложения
+   yj64-private-archives, не в Download и не в общем ZIP.
+4. Архив каждого участника содержит только его собственную историю.
+5. Существующие сообщения и файлы не удаляются и не переписываются.
+6. Существующие ранее созданные ZIP не сканируются и не изменяются.
+7. При повторном экспорте личный ZIP атомарно обновляется полной
+   текущей историей соответствующего участника.
 
 ORIGINAL FRAGMENT BEGIN
 
-        actions = [
-            ("СОЗДАТЬ АРХИВ ПАМЯТИ", self._create_memory_archive),
-            ("ВОССТАНОВИТЬ ИЗ ZIP", self._choose_memory_archive),
-            ("НАСТРОЙКИ ЧАТА: ШРИФТ И ИМЕНА", self._open_chat_appearance_settings),
-            (self._t(5), self._open_tools_menu),
-            (self._t(6), self._show_chats),
-            (self._t(7), self._new_chat),
-            (self._t(11), self._open_skills_editor),
-        ]
+    def _collect_files(self)->dict[str,bytes]:
+        result={}
+        for base in (self.workspace_path,self.report_path):
+            if base.is_file() and not base.is_symlink():items=[base]
+            elif base.is_dir() and not base.is_symlink():items=[p for p in base.rglob("*") if p.is_file() and not p.is_symlink()]
+            else:items=[]
+            for p in items:
+                name=p.relative_to(self.root).as_posix();data=p.read_bytes()
+                result[name]=self._sanitize_json(data) if p.suffix.lower()==".json" else data
+        for pattern in ("yj64-router-config.json","yj64-llm-config*.json"):
+            for p in self.root.glob(pattern):
+                if p.is_file() and not p.is_symlink():result[p.name]=self._sanitize_json(p.read_bytes())
+        return result
+    @staticmethod
+    def _merge_history
 
 ORIGINAL FRAGMENT END
 
 NEW FRAGMENT BEGIN
 
-        actions = [
-            ("СОЗДАТЬ АРХИВ В ЗАГРУЗКАХ", self._auto_export_download_archive),
-            ("СОЗДАТЬ АРХИВ ВЫБОРОМ ПАПКИ", self._create_memory_archive),
-            ("ВОССТАНОВИТЬ ИЗ ZIP", self._choose_memory_archive),
-            ("НАСТРОЙКИ ЧАТА: ШРИФТ И ИМЕНА", self._open_chat_appearance_settings),
-            (self._t(5), self._open_tools_menu),
-            (self._t(6), self._show_chats),
-            (self._t(7), self._new_chat),
-            (self._t(11), self._open_skills_editor),
-        ]
+    def _collect_files(self)->dict[str,bytes]:
+        result={}
+        for base in (self.workspace_path,self.report_path):
+            if base.is_file() and not base.is_symlink():items=[base]
+            elif base.is_dir() and not base.is_symlink():items=[p for p in base.rglob("*") if p.is_file() and not p.is_symlink()]
+            else:items=[]
+            for p in items:
+                name=p.relative_to(self.root).as_posix()
+                if name.startswith("yj64-workspace/histories/"):
+                    continue
+                data=p.read_bytes()
+                result[name]=self._sanitize_json(data) if p.suffix.lower()==".json" else data
+        for pattern in ("yj64-router-config.json","yj64-llm-config*.json"):
+            for p in self.root.glob(pattern):
+                if p.is_file() and not p.is_symlink():
+                    result[p.name]=self._sanitize_json(p.read_bytes())
+        return result
 
-NEW FRAGMENT END
-
----
-
-PATCH-ID: YJ64-ARCHIVE-002
-
-TARGET FILE: main.py
-
-PURPOSE:
-
-Показывать пользователю причину ошибки автоматического экспорта архива.
-
-ORIGINAL FRAGMENT BEGIN
-
-        except Exception as exc:
-            self._archive_auto_export_error = f"{type(exc).__name__}: {exc}"
-            self._append_report("memory_archive_auto_download_failed",
-                                error_type=type(exc).__name__, error=str(exc),
-                                location="Download/YJ-64")
-            if uri is not None:
-                try:
-                    from jnius import autoclass
-                    PythonActivity = autoclass("org.kivy.android.PythonActivity")
-                    PythonActivity.mActivity.getContentResolver().delete(uri, None, None)
-                except Exception:
-                    pass
-
-ORIGINAL FRAGMENT END
-
-NEW FRAGMENT BEGIN
-
-        except Exception as exc:
-            self._archive_auto_export_error = f"{type(exc).__name__}: {exc}"
-            self.status.text = (
-                "Автосохранение архива не удалось: "
-                + self._archive_auto_export_error
-            )
-            self._append_report(
-                "memory_archive_auto_download_failed",
-                error_type=type(exc).__name__,
-                error=str(exc),
-                location="Download/YJ-64",
-            )
-            if uri is not None:
-                try:
-                    from jnius import autoclass
-                    PythonActivity = autoclass("org.kivy.android.PythonActivity")
-                    PythonActivity.mActivity.getContentResolver().delete(
-                        uri, None, None
-                    )
-                except Exception:
-                    pass
-
-NEW FRAGMENT END
-
----
-
-PATCH-ID: YJ64-WORKSPACE-001
-
-TARGET FILE: chat_workspace.py
-
-PURPOSE:
-
-Создавать отсутствующие файлы истории чатов при запуске,
-не перезаписывая существующие файлы.
-
-ORIGINAL FRAGMENT BEGIN
-
-    def __init__(self, user_data_dir: str | Path):
-        self.root = Path(user_data_dir) / "yj64-workspace"
-        self.root.mkdir(parents=True, exist_ok=True)
-        self.chats_dir = self.root / "chats"
-        self.agents_dir = self.root / "agents"
-        self.histories_dir = self.root / "histories"
-        for folder in (self.chats_dir, self.agents_dir, self.histories_dir):
-            folder.mkdir(parents=True, exist_ok=True)
-        self.skills_path = self.root / "skills.md"
-        if not self.skills_path.exists():
-            self.skills_path.write_text("# YJ-64 local skills\n", encoding="utf-8")
-        self.index_path = self.root / "chats.json"
-        if not self.index_path.exists():
-            self._write_json(self.index_path, {"chats": []})
-        if not self.list_chats():
-            self.create_chat("Общий чат")
-
-ORIGINAL FRAGMENT END
-
-NEW FRAGMENT BEGIN
-
-    def __init__(self, user_data_dir: str | Path):
-        self.root = Path(user_data_dir) / "yj64-workspace"
-        self.root.mkdir(parents=True, exist_ok=True)
-        self.chats_dir = self.root / "chats"
-        self.agents_dir = self.root / "agents"
-        self.histories_dir = self.root / "histories"
-        for folder in (self.chats_dir, self.agents_dir, self.histories_dir):
-            folder.mkdir(parents=True, exist_ok=True)
-        self.skills_path = self.root / "skills.md"
-        if not self.skills_path.exists():
-            self.skills_path.write_text("# YJ-64 local skills\n", encoding="utf-8")
-        self.index_path = self.root / "chats.json"
-        if not self.index_path.exists():
-            self._write_json(self.index_path, {"chats": []})
-        if not self.list_chats():
-            self.create_chat("Общий чат")
-        self.ensure_chat_files()
-
-    def ensure_chat_files(self) -> None:
-        """Create missing chat histories without overwriting existing files."""
-        for chat in self.list_chats():
-            chat_id = str(chat.get("id", "")).strip()
-            if not chat_id:
+    def export_private_archives(self)->list[Path]:
+        """Write one isolated private ZIP per participant into app-private storage."""
+        source_dir=self.workspace_path/"histories"
+        if not source_dir.is_dir() or source_dir.is_symlink():
+            return []
+        target_dir=self.root/"yj64-private-archives"
+        target_dir.mkdir(parents=True,exist_ok=True)
+        created=[]
+        for source in sorted(source_dir.glob("*.json")):
+            if not source.is_file() or source.is_symlink():
                 continue
-            path = self._messages_path(chat_id)
-            if not path.exists():
-                self._write_json(path, [])
+            participant_id=source.stem
+            if not participant_id or not re.fullmatch(r"[A-Za-z0-9_-]+",participant_id):
+                continue
+            payload=source.read_bytes()
+            try:
+                rows=json.loads(payload.decode("utf-8"))
+            except (UnicodeDecodeError,json.JSONDecodeError) as exc:
+                raise IOError("Invalid private history: "+source.name) from exc
+            if not isinstance(rows,list):
+                raise IOError("Private history must be a JSON list: "+source.name)
+            member="histories/"+source.name
+            now=int(time.time()*1000)
+            manifest={
+                "schema":"yj64.private-chat.v1",
+                "participant_id":participant_id,
+                "created_at":time.strftime("%Y-%m-%dT%H:%M:%SZ",time.gmtime(now/1000)),
+                "files":{member:{"sha256":self._sha(payload),"size":len(payload)}},
+            }
+            destination=target_dir/("YJ-64-PRIVATE-"+participant_id+".zip")
+            temporary=destination.with_suffix(".zip.tmp")
+            try:
+                with zipfile.ZipFile(temporary,"w",compression=zipfile.ZIP_DEFLATED) as archive:
+                    archive.writestr(member,payload)
+                    archive.writestr("manifest.json",json.dumps(manifest,ensure_ascii=False,indent=2))
+                with zipfile.ZipFile(temporary,"r") as check:
+                    if check.testzip() or set(check.namelist())!={member,"manifest.json"}:
+                        raise IOError("Private archive integrity check failed: "+participant_id)
+                    if self._sha(check.read(member))!=manifest["files"][member]["sha256"]:
+                        raise IOError("Private archive SHA-256 mismatch: "+participant_id)
+                os.replace(temporary,destination)
+            except Exception:
+                temporary.unlink(missing_ok=True)
+                raise
+            created.append(destination)
+        return created
+
+    @staticmethod
+    def _merge_history
 
 NEW FRAGMENT END
 
 ---
 
-PATCH-ID: YJ64-BUILD-001
+PATCH-ID: YJ64-PRIVATE-ARCHIVE-002
 
-STATUS: ALREADY APPLIED — EXCLUDED FROM TRANSFER
+TARGET FILE: yj64_persistent_core.py
 
-TARGET FILE: buildozer.spec
+PURPOSE:
 
-Текущая версия рабочего файла: 0.1.32.
+Запускать создание отдельных личных ZIP при каждом штатном экспорте
+общего архива. Общий ZIP остаётся без личных историй; личные ZIP
+обновляются независимо и остаются во внутреннем хранилище приложения.
 
-Повторное повышение версии не требуется.
-Этот патч не должен переноситься в рабочий файл.
+ORIGINAL FRAGMENT BEGIN
+
+        return dest
+
+ORIGINAL FRAGMENT END
+
+NEW FRAGMENT BEGIN
+
+        self.export_private_archives()
+        return dest
+
+NEW FRAGMENT END
+
+---
 
 ============================================================
 РАЗДЕЛ 5. КОНЕЦ ОПЕРАЦИОННОГО СТОЛА
