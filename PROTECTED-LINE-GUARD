@@ -121,57 +121,190 @@ END ALLOWED
 РАЗДЕЛ 4. НАЧАЛО ОПЕРАЦИОННОГО СТОЛА
 ============================================================
 
-НАЗНАЧЕНИЕ:
+НАЧАЛО ОПЕРАЦИОННОГО СТОЛА
 
-Здесь находятся только те участки рабочих файлов, которые
-предстоит изменить в текущей задаче.
+НАЗНАЧЕНИЕ
 
-Каждый участок сопровождается:
-- идентификатором задачи;
-- путём к рабочему файлу;
-- описанием цели изменения;
-- точной исходной копией заменяемого кода.
+Здесь находятся только участки рабочих файлов, предназначенные для изменения в текущей задаче.
 
-ПРАВИЛА РАБОТЫ:
+Каждый патч содержит:
 
-1. Сначала скопировать сюда исходный фрагмент из рабочего файла.
-2. Проверить его точное соответствие исходнику.
-3. Выполнить согласованные изменения здесь.
-4. Проверить новый код.
-5. Перенести готовый код в рабочий файл.
-6. Удалить старый фрагмент и поставить новый на его место.
-7. Проверить точное совпадение рабочего файла с новым фрагментом.
-8. Не переносить в рабочий файл непроверенный код.
+- уникальный PATCH-ID;
+- путь к рабочему файлу;
+- цель изменения;
+- точную исходную копию;
+- новый проверенный фрагмент.
 
--------------------- ЗАДАЧА / PATCH --------------------
+ПРАВИЛА
+
+1. Сверить исходный фрагмент с рабочим файлом.
+2. Проверить синтаксис нового фрагмента.
+3. Не менять код за пределами разрешённого участка.
+4. Перенести новый фрагмент на место исходного.
+5. Проверить точное совпадение результата.
+6. Синхронизировать Guard и контрольные SHA.
+7. Не запускать сборку без отдельного разрешения.
+
+---
+
+PATCH-ID: YJ64-ARCHIVE-001
+
+FILE: "main.py"
+
+PURPOSE: Добавить отдельную кнопку создания архива в Download/YJ-64.
+
+BEGIN ALLOWED — ORIGINAL
+
+actions = [
+    ("СОЗДАТЬ АРХИВ ПАМЯТИ", self._create_memory_archive),
+    ("ВОССТАНОВИТЬ ИЗ ZIP", self._choose_memory_archive),
+    ("НАСТРОЙКИ ЧАТА: ШРИФТ И ИМЕНА", self._open_chat_appearance_settings),
+    (self._t(5), self._open_tools_menu),
+    (self._t(6), self._show_chats),
+    (self._t(7), self._new_chat),
+    (self._t(11), self._open_skills_editor),
+]
+
+END ALLOWED — ORIGINAL
+
+NEW FRAGMENT
+
+actions = [
+    ("СОЗДАТЬ АРХИВ В ЗАГРУЗКАХ", self._auto_export_download_archive),
+    ("СОЗДАТЬ АРХИВ ВЫБОРОМ ПАПКИ", self._create_memory_archive),
+    ("ВОССТАНОВИТЬ ИЗ ZIP", self._choose_memory_archive),
+    ("НАСТРОЙКИ ЧАТА: ШРИФТ И ИМЕНА", self._open_chat_appearance_settings),
+    (self._t(5), self._open_tools_menu),
+    (self._t(6), self._show_chats),
+    (self._t(7), self._new_chat),
+    (self._t(11), self._open_skills_editor),
+]
+
+---
+
+PATCH-ID: YJ64-ARCHIVE-002
+
+FILE: "main.py"
+
+PURPOSE: Показывать владельцу понятную причину ошибки автоматического экспорта.
+
+BEGIN ALLOWED — ORIGINAL
+
+except Exception as exc:
+    self._archive_auto_export_error = f"{type(exc).__name__}: {exc}"
+    self._append_report(
+        "memory_archive_auto_download_failed",
+        error_type=type(exc).__name__,
+        error=str(exc),
+        location="Download/YJ-64",
+    )
+    if uri is not None:
+        try:
+            from jnius import autoclass
+            PythonActivity = autoclass("org.kivy.android.PythonActivity")
+            PythonActivity.mActivity.getContentResolver().delete(uri, None, None)
+        except Exception:
+            pass
+
+END ALLOWED — ORIGINAL
+
+NEW FRAGMENT
+
+except Exception as exc:
+    self._archive_auto_export_error = f"{type(exc).__name__}: {exc}"
+    self.status.text = (
+        "Автосохранение архива не удалось: "
+        + self._archive_auto_export_error
+    )
+    self._append_report(
+        "memory_archive_auto_download_failed",
+        error_type=type(exc).__name__,
+        error=str(exc),
+        location="Download/YJ-64",
+    )
+    if uri is not None:
+        try:
+            from jnius import autoclass
+            PythonActivity = autoclass("org.kivy.android.PythonActivity")
+            PythonActivity.mActivity.getContentResolver().delete(uri, None, None)
+        except Exception:
+            pass
+
+---
+
+PATCH-ID: YJ64-WORKSPACE-001
+
+FILE: "chat_workspace.py"
+
+PURPOSE: Создавать отсутствующие файлы истории чатов при запуске, не перезаписывая существующие.
+
+BEGIN ALLOWED — ORIGINAL
+
+def __init__(self, user_data_dir: str | Path):
+    self.root = Path(user_data_dir) / "yj64-workspace"
+    self.root.mkdir(parents=True, exist_ok=True)
+    self.chats_dir = self.root / "chats"
+    self.agents_dir = self.root / "agents"
+    self.histories_dir = self.root / "histories"
+    for folder in (self.chats_dir, self.agents_dir, self.histories_dir):
+        folder.mkdir(parents=True, exist_ok=True)
+    self.skills_path = self.root / "skills.md"
+    if not self.skills_path.exists():
+        self.skills_path.write_text("# YJ-64 local skills\n", encoding="utf-8")
+    self.index_path = self.root / "chats.json"
+    if not self.index_path.exists():
+        self._write_json(self.index_path, {"chats": []})
+    if not self.list_chats():
+        self.create_chat("Общий чат")
+
+END ALLOWED — ORIGINAL
+
+NEW FRAGMENT
+
+def __init__(self, user_data_dir: str | Path):
+    self.root = Path(user_data_dir) / "yj64-workspace"
+    self.root.mkdir(parents=True, exist_ok=True)
+    self.chats_dir = self.root / "chats"
+    self.agents_dir = self.root / "agents"
+    self.histories_dir = self.root / "histories"
+    for folder in (self.chats_dir, self.agents_dir, self.histories_dir):
+        folder.mkdir(parents=True, exist_ok=True)
+    self.skills_path = self.root / "skills.md"
+    if not self.skills_path.exists():
+        self.skills_path.write_text("# YJ-64 local skills\n", encoding="utf-8")
+    self.index_path = self.root / "chats.json"
+    if not self.index_path.exists():
+        self._write_json(self.index_path, {"chats": []})
+    if not self.list_chats():
+        self.create_chat("Общий чат")
+    self.ensure_chat_files()
 
 
-ЦЕЛЬ:Доработать сохранение контекста и доступность резервного архива YJ-64.
-ОГРАНИЧЕНИЯ:
-1. Не переписывать уже работающий редактор контекста.
-2. Не изменять существующий формат архива и механизм восстановления.
-3. Не перезаписывать существующие файлы истории чатов.
-4. Не менять маршрутизацию LLM, приватные чаты и другие функции.
-5. Повысить версию Base APK.
-6. После переноса изменений синхронизировать Guard и контрольные SHA.
---------------------
-PATCH-ID: YJ64-ARCHIVE-001FILE: main.pyPURPOSE: Добавить отдельную кнопку ручного создания архива в Download/YJ-64.
-FILE: main.py BEGIN ALLOWEDactions = [("СОЗДАТЬ АРХИВ ПАМЯТИ", self._create_memory_archive),("ВОССТАНОВИТЬ ИЗ ZIP", self._choose_memory_archive),("НАСТРОЙКИ ЧАТА: ШРИФТ И ИМЕНА", self._open_chat_appearance_settings),(self._t(5), self._open_tools_menu),(self._t(6), self._show_chats),(self._t(7), self._new_chat),(self._t(11), self._open_skills_editor),]END ALLOWED
-НОВЫЙ ФРАГМЕНТ ДЛЯ РАБОЧЕГО ФАЙЛА:actions = [("СОЗДАТЬ АРХИВ В ЗАГРУЗКАХ", self._auto_export_download_archive),("СОЗДАТЬ АРХИВ ВЫБОРОМ ПАПКИ", self._create_memory_archive),("ВОССТАНОВИТЬ ИЗ ZIP", self._choose_memory_archive),("НАСТРОЙКИ ЧАТА: ШРИФТ И ИМЕНА", self._open_chat_appearance_settings),(self._t(5), self._open_tools_menu),(self._t(6), self._show_chats),(self._t(7), self._new_chat),(self._t(11), self._open_skills_editor),]
---------------------
-PATCH-ID: YJ64-ARCHIVE-002FILE: main.pyPURPOSE: Показывать владельцу понятную причину ошибки автоматического экспорта.
-FILE: main.py BEGIN ALLOWEDexcept Exception as exc:self._archive_auto_export_error = f"{type(exc).name}: {exc}"self._append_report("memory_archive_auto_download_failed",error_type=type(exc).name, error=str(exc),location="Download/YJ-64")if uri is not None:try:from jnius import autoclassPythonActivity = autoclass("org.kivy.android.PythonActivity")PythonActivity.mActivity.getContentResolver().delete(uri, None, None)except Exception:passEND ALLOWED
-НОВЫЙ ФРАГМЕНТ ДЛЯ РАБОЧЕГО ФАЙЛА:except Exception as exc:self._archive_auto_export_error = (f"{type(exc).name}: {exc}")self.status.text = ("Автосохранение архива не удалось: "+ self._archive_auto_export_error)self._append_report("memory_archive_auto_download_failed",error_type=type(exc).name,error=str(exc),location="Download/YJ-64",)if uri is not None:try:from jnius import autoclassPythonActivity = autoclass("org.kivy.android.PythonActivity")PythonActivity.mActivity.getContentResolver().delete(uri, None, None)except Exception:pass
---------------------
-PATCH-ID: YJ64-WORKSPACE-001FILE: chat_workspace.pyPURPOSE: Создавать отсутствующие файлы истории чатов при запуске, не затрагивая уже существующие файлы.
-FILE: chat_workspace.py BEGIN ALLOWEDdef init(self, user_data_dir: str | Path):self.root = Path(user_data_dir) / "yj64-workspace"self.root.mkdir(parents=True, exist_ok=True)self.chats_dir = self.root / "chats"self.agents_dir = self.root / "agents"self.histories_dir = self.root / "histories"for folder in (self.chats_dir, self.agents_dir, self.histories_dir):folder.mkdir(parents=True, exist_ok=True)self.skills_path = self.root / "skills.md"if not self.skills_path.exists():self.skills_path.write_text("# YJ-64 local skills\n", encoding="utf-8")self.index_path = self.root / "chats.json"if not self.index_path.exists():self._write_json(self.index_path, {"chats": []})if not self.list_chats():self.create_chat("Общий чат")END ALLOWED
-НОВЫЙ ФРАГМЕНТ ДЛЯ РАБОЧЕГО ФАЙЛА:def init(self, user_data_dir: str | Path):self.root = Path(user_data_dir) / "yj64-workspace"self.root.mkdir(parents=True, exist_ok=True)self.chats_dir = self.root / "chats"self.agents_dir = self.root / "agents"self.histories_dir = self.root / "histories"for folder in (self.chats_dir, self.agents_dir, self.histories_dir):folder.mkdir(parents=True, exist_ok=True)self.skills_path = self.root / "skills.md"if not self.skills_path.exists():self.skills_path.write_text("# YJ-64 local skills\n",encoding="utf-8",)self.index_path = self.root / "chats.json"if not self.index_path.exists():self._write_json(self.index_path, {"chats": []})if not self.list_chats():self.create_chat("Общий чат")self.ensure_chat_files()
-def ensure_chat_files(self) -> None: """Create missing chat histories without overwriting existing files.""" for chat in self.list_chats(): chat_id = str(chat.get("id", "")).strip() if not chat_id: continue path = self._messages_path(chat_id) if not path.exists(): self._write_json(path, [])
---------------------
-PATCH-ID: YJ64-BUILD-001FILE: buildozer.specPURPOSE: Повысить версию Base APK для следующей сборки.
-FILE: buildozer.spec BEGIN ALLOWEDversion = 0.1.31END ALLOWED
-НОВЫЙ ФРАГМЕНТ ДЛЯ РАБОЧЕГО ФАЙЛА:version = 0.1.32
-============================================================КОНЕЦ ОПЕРАЦИОННОГО СТОЛА
+def ensure_chat_files(self) -> None:
+    """Create missing chat histories without overwriting existing files."""
+    for chat in self.list_chats():
+        chat_id = str(chat.get("id", "")).strip()
+        if not chat_id:
+            continue
+        path = self._messages_path(chat_id)
+        if not path.exists():
+            self._write_json(path, [])
+
+---
+
+PATCH-ID: YJ64-BUILD-001
+
+STATUS: ALREADY APPLIED
+
+FILE: "buildozer.spec"
+
+Текущая версия рабочего файла уже "0.1.32".
+
+Повторное изменение версии не требуется. Этот патч исключён из переноса.
+
+---
+
+КОНЕЦ ОПЕРАЦИОННОГО СТОЛА
 
 
 
