@@ -131,24 +131,17 @@ END ALLOWED
 ---
 
 PATCH-ID: YJ64-ARCHIVE-001
-
-FILE: main.py
-
-PURPOSE:
-Добавить отдельную кнопку автоматического создания архива
-в публичную папку Download/YJ-64.
-
-BEGIN ALLOWED — ORIGINAL
-
-    actions = [
-        ("СОЗДАТЬ АРХИВ ПАМЯТИ", self._create_memory_archive),
-        ("ВОССТАНОВИТЬ ИЗ ZIP", self._choose_memory_archive),
-        ("НАСТРОЙКИ ЧАТА: ШРИФТ И ИМЕНА", self._open_chat_appearance_settings),
-        (self._t(5), self._open_tools_menu),
-        (self._t(6), self._show_chats),
-        (self._t(7), self._new_chat),
-        (self._t(11), self._open_skills_editor),
-    ]
+FILE: main.py BEGIN ALLOWED
+        actions = [
+            ("СОЗДАТЬ АРХИВ ПАМЯТИ", self._create_memory_archive),
+            ("ВОССТАНОВИТЬ ИЗ ZIP", self._choose_memory_archive),
+            ("НАСТРОЙКИ ЧАТА: ШРИФТ И ИМЕНА", self._open_chat_appearance_settings),
+            (self._t(5), self._open_tools_menu),
+            (self._t(6), self._show_chats),
+            (self._t(7), self._new_chat),
+            (self._t(11), self._open_skills_editor),
+        ]
+END ALLOWED
 
 END ALLOWED — ORIGINAL
 
@@ -169,28 +162,20 @@ NEW FRAGMENT
 
 PATCH-ID: YJ64-ARCHIVE-002
 
-FILE: main.py
-
-PURPOSE:
-Показывать пользователю причину ошибки автоматического экспорта архива.
-
-BEGIN ALLOWED — ORIGINAL
-
-    except Exception as exc:
-        self._archive_auto_export_error = f"{type(exc).__name__}: {exc}"
-        self._append_report("memory_archive_auto_download_failed",
-                            error_type=type(exc).__name__, error=str(exc),
-                            location="Download/YJ-64")
-        if uri is not None:
-            try:
-                from jnius import autoclass
-                PythonActivity = autoclass("org.kivy.android.PythonActivity")
-                PythonActivity.mActivity.getContentResolver().delete(uri, None, None)
-            except Exception:
-                pass
-
-END ALLOWED — ORIGINAL
-
+FILE: main.py BEGIN ALLOWED
+        except Exception as exc:
+            self._archive_auto_export_error = f"{type(exc).__name__}: {exc}"
+            self._append_report("memory_archive_auto_download_failed",
+                                error_type=type(exc).__name__, error=str(exc),
+                                location="Download/YJ-64")
+            if uri is not None:
+                try:
+                    from jnius import autoclass
+                    PythonActivity = autoclass("org.kivy.android.PythonActivity")
+                    PythonActivity.mActivity.getContentResolver().delete(uri, None, None)
+                except Exception:
+                    pass
+END ALLOWED
 NEW FRAGMENT
 
     except Exception as exc:
@@ -218,33 +203,24 @@ NEW FRAGMENT
 ---
 
 PATCH-ID: YJ64-WORKSPACE-001
-
-FILE: chat_workspace.py
-
-PURPOSE:
-Создавать отсутствующие файлы истории чатов при запуске,
-не перезаписывая существующие файлы.
-
-BEGIN ALLOWED — ORIGINAL
-
-def __init__(self, user_data_dir: str | Path):
-    self.root = Path(user_data_dir) / "yj64-workspace"
-    self.root.mkdir(parents=True, exist_ok=True)
-    self.chats_dir = self.root / "chats"
-    self.agents_dir = self.root / "agents"
-    self.histories_dir = self.root / "histories"
-    for folder in (self.chats_dir, self.agents_dir, self.histories_dir):
-        folder.mkdir(parents=True, exist_ok=True)
-    self.skills_path = self.root / "skills.md"
-    if not self.skills_path.exists():
-        self.skills_path.write_text("# YJ-64 local skills\n", encoding="utf-8")
-    self.index_path = self.root / "chats.json"
-    if not self.index_path.exists():
-        self._write_json(self.index_path, {"chats": []})
-    if not self.list_chats():
-        self.create_chat("Общий чат")
-
-END ALLOWED — ORIGINAL
+FILE: chat_workspace.py BEGIN ALLOWED
+    def __init__(self, user_data_dir: str | Path):
+        self.root = Path(user_data_dir) / "yj64-workspace"
+        self.root.mkdir(parents=True, exist_ok=True)
+        self.chats_dir = self.root / "chats"
+        self.agents_dir = self.root / "agents"
+        self.histories_dir = self.root / "histories"
+        for folder in (self.chats_dir, self.agents_dir, self.histories_dir):
+            folder.mkdir(parents=True, exist_ok=True)
+        self.skills_path = self.root / "skills.md"
+        if not self.skills_path.exists():
+            self.skills_path.write_text("# YJ-64 local skills\n", encoding="utf-8")
+        self.index_path = self.root / "chats.json"
+        if not self.index_path.exists():
+            self._write_json(self.index_path, {"chats": []})
+        if not self.list_chats():
+            self.create_chat("Общий чат")
+END ALLOWED
 
 NEW FRAGMENT
 
