@@ -36,7 +36,7 @@ tools/verify_guard.py.
 
 Формат обязательного блока:
 
-FILE: путь/к/файлу BEGIN ALLOWED
+`FILE: путь/к/файлу BEGIN ALLOWED`
 точный исходный фрагмент
 END ALLOWED
 
