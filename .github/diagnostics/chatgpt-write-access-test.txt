@@ -1,0 +1,5 @@
+YJ-64 GitHub write-access diagnostic
+Repository: concreteballs/yj64-clean-bial2modFun3
+Branch: diagnostic/write-access-test-2026-10-31
+Purpose: verify that the connected GitHub integration can create a file on an isolated test branch.
+This file does not modify application source code.
